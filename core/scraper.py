@@ -2,15 +2,20 @@ import requests
 import feedparser
 import random
 import datetime
-import ollama
 import re
+import os
+from groq import Groq  # <--- CHANGED
+from core.db_manager import DBManager
+from dotenv import load_dotenv
 from core.db_manager import DBManager
 
 
 class NewsScraper:
     def __init__(self):
         self.db = DBManager()
-        self.model = "llama3.2:3b"
+        # Initialize Groq Client
+        self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))  # <--- CHANGED
+        self.model = "llama-3.3-70b-versatile"  # Fast and free on Groq
         self.headers = {"User-Agent": "Mozilla/5.0"}
 
         self.niche_map = {
@@ -81,9 +86,8 @@ class NewsScraper:
     # 🟢 NEW: AI VIRAL JUDGE
     def pick_viral_topic(self, candidates, niche):
         """
-        Uses Ollama to analyze titles and pick the most click-worthy one.
+        Uses Groq (Cloud AI) to analyze titles and pick the most click-worthy one.
         """
-        # Create a numbered list for the AI to read
         titles = [f"{i}. {c['title']}" for i, c in enumerate(candidates)]
         titles_text = "\n".join(titles)
 
@@ -104,14 +108,16 @@ class NewsScraper:
 
         try:
             print(
-                f"   🤖 AI Judge: Analyzing {len(candidates)} headlines for virality..."
-            )
-            response = ollama.chat(
-                model=self.model, messages=[{"role": "user", "content": prompt}]
+                f"   🤖 Groq Judge: Analyzing {len(candidates)} headlines for virality..."
             )
 
-            # Extract the number from the response (e.g., "The best is 3" -> 3)
-            content = response["message"]["content"].strip()
+            # CALL GROQ API INSTEAD OF OLLAMA
+            chat_completion = self.client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model=self.model,
+            )
+
+            content = chat_completion.choices[0].message.content.strip()
             match = re.search(r"\d+", content)
 
             if match:
@@ -126,7 +132,7 @@ class NewsScraper:
             return random.choice(candidates)
 
         except Exception as e:
-            print(f"      ❌ AI Error: {e}. Fallback to random.")
+            print(f"      ❌ Groq Error: {e}. Fallback to random.")
             return random.choice(candidates)
 
     def scrape_targeted_niche(self, forced_slot=None):

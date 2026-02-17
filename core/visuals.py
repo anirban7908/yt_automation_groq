@@ -3,7 +3,7 @@ import time
 import requests
 import random
 import re
-import ollama
+# import ollama <--- REMOVED (Not used here)
 from core.db_manager import DBManager
 from dotenv import load_dotenv
 from PIL import Image

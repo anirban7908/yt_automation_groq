@@ -50,7 +50,7 @@ class YouTubeUploader:
         return build(self.api_service_name, self.api_version, credentials=creds)
 
     def upload_video(self):
-        # task = self.db.collection.find_one({"status": "completed_packaged"})
+        # Fetch the most recent packaged task
         task = self.db.collection.find_one(
             {"status": "completed_packaged"}, sort=[("created_at", -1)]
         )
@@ -66,18 +66,23 @@ class YouTubeUploader:
             return
 
         # 🟢 DYNAMIC CATEGORY LOGIC
-        # Get niche from DB, default to 'general' if missing
         niche = task.get("niche", "general").lower()
-        # Look up the ID, default to '22' (People & Blogs) if niche not found
         category_id = self.CATEGORY_MAP.get(niche, "22")
 
         print(f"   🏷️ Niche: {niche} -> YouTube Category ID: {category_id}")
 
+        # 🟢 SANITIZE DESCRIPTION (THE FIX)
+        # 1. Construct the raw description
+        raw_description = f"{task['ai_description'][:4000]}\n\n#Shorts\n\nSource: {task.get('source_url', '')}"
+
+        # 2. Remove forbidden characters (< and >)
+        clean_description = raw_description.replace("<", "").replace(">", "")
+
         request_body = {
             "snippet": {
-                "categoryId": category_id,  # <--- NOW DYNAMIC
+                "categoryId": category_id,
                 "title": task["title"][:100],
-                "description": f"{task['content'][:4000]}\n\n#Shorts\n\nSource: {task.get('source_url', '')}",
+                "description": clean_description,  # <--- Uses cleaned text
                 "tags": task.get("tags", "").split(",") + ["Shorts", niche],
             },
             "status": {"privacyStatus": "private", "selfDeclaredMadeForKids": False},

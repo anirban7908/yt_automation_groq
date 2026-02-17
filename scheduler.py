@@ -13,13 +13,9 @@ def job(slot):
     print(f"\n🔔 [{timestamp}] TRIGGERING AUTOMATION: {slot.upper()}")
 
     try:
-        # 1. Run the Creation Pipeline (main.py)
+        # Run the Creation Pipeline (main.py)
         # We run it as a subprocess to keep memory clean
         subprocess.run([PYTHON_EXEC, "-m", "core.main", slot], check=True)
-
-        # 2. Run the Uploader
-        print(f"🚀 [{timestamp}] Starting Upload...")
-        subprocess.run([PYTHON_EXEC, "-m", "core.uploader"], check=True)
 
         print(f"✅ [{slot.upper()}] JOB FINISHED.")
 
@@ -35,14 +31,12 @@ schedule.every().day.at("18:00").do(job, slot="evening")  # Nature
 schedule.every().day.at("22:00").do(job, slot="night")  # History
 
 print("===================================================")
-print("🤖 THE KNOWLEDGE SPECTRUM: AUTOPILOT ENGAGED")
+print("🤖 THE KNOWLEDGE SPECTRUM: GROQ AUTOPILOT ENGAGED")
 print("   - Schedule: 4 Times Daily")
 print("   - Press Ctrl+C to stop")
 print("===================================================")
 
-# Immediate check (Optional: Remove if you don't want to test right now)
-# job("noon")
-
+# Loop forever
 while True:
     schedule.run_pending()
-    time.sleep(60)  # Check every minute
+    time.sleep(60)

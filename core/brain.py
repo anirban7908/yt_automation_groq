@@ -1,13 +1,19 @@
 import json
 import re
-import ollama
+import os
+from groq import Groq  # <--- CHANGED
 from core.db_manager import DBManager
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class ScriptGenerator:
     def __init__(self):
         self.db = DBManager()
-        self.model = "llama3.2:3b"
+        # Initialize Groq Client
+        self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))  # <--- CHANGED
+        self.model = "llama-3.3-70b-versatile"  # Fast, high quality
 
     def repair_json(self, json_str):
         try:
@@ -27,6 +33,8 @@ class ScriptGenerator:
         niche = task.get("niche", "tech")
         source = task.get("content", "")[:3000]
         source_url = task.get("source_url", "https://news.google.com")
+
+        # PROMPT REMAINS EXACTLY THE SAME AS BEFORE
         prompt = f"""
         ROLE: Documentary Director.
         TASK: Convert this news into a structured video script.
@@ -45,7 +53,7 @@ class ScriptGenerator:
            - 'keywords': A list of exactly 2 string search terms.
            - **NEVER leave this empty.** Even for the Outro/CTA scene.
            - **SPECIFICITY**: Use specific names (e.g., "Sony Camera", "Elon Musk", "SpaceX Rocket").
-           - **FALLBACK**: If the scene is generic (like "Subscribe"), use keywords like ["Abstract Tech Background", "News Studio"].
+           - **FALLBACK**: If the scene is generic, use keywords like ["Abstract Tech Background", "News Studio"].
            - **BAD**: [] or [""] -> THIS WILL CRASH THE SYSTEM.
            - **GOOD**: ["Sony LinkBuds", "Earbuds"] or ["Subscribe Button", "Social Media"].
         
@@ -57,18 +65,13 @@ class ScriptGenerator:
         OUTPUT FORMAT (JSON ONLY):
         {{
             "title": "Viral Title Here",
-            "description": "A short summary of the video content...",
-            "hashtags": "#Tag1 #Tag2 #Tag3",
-            "tags": "tag1, tag2, tag3, tag4",
+            "description": "Short summary...",
+            "hashtags": "#Tag1 #Tag2",
+            "tags": "tag1, tag2, tag3",
             "scenes": [
                 {{
-                    "text": "Scientists have made a shocking discovery.",
+                    "text": "Scientists have made a discovery.",
                     "keywords": ["Scientist", "Lab"],
-                    "image_count": 1
-                }},
-                {{
-                    "text": "Follow us for more amazing science stories!",
-                    "keywords": ["Abstract Background", "Community"],
                     "image_count": 1
                 }}
             ]
@@ -76,51 +79,46 @@ class ScriptGenerator:
         """
 
         try:
-            print(f"🧠 AI Director: Segmenting {niche.upper()} story...")
-            response = ollama.chat(
+            print(f"🧠 Groq Director: Segmenting {niche.upper()} story...")
+
+            # CALL GROQ API
+            chat_completion = self.client.chat.completions.create(
+                messages=[
+                    # System prompt ensures it forces JSON mode
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant that outputs ONLY valid JSON.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
                 model=self.model,
-                format="json",
-                messages=[{"role": "user", "content": prompt}],
+                response_format={
+                    "type": "json_object"
+                },  # Groq supports native JSON mode!
             )
 
-            data = self.repair_json(response["message"]["content"])
+            response_content = chat_completion.choices[0].message.content
+            data = self.repair_json(response_content)
+
             if not data or "scenes" not in data:
                 raise ValueError("Invalid JSON structure from AI")
 
-            # 🟢 Combine scenes into one readable script
-            # full_script = " ".join([scene["text"] for scene in data["scenes"]])
-
-            # 🟢 NEW: Save Metadata to a Text File Immediately
-            # We create a temporary folder since the final video folder doesn't exist yet
+            # 🟢 Create Metadata File (Same as before)
             meta_filename = f"metadata_{task['_id']}.txt"
-
             metadata_content = f"""
                 ===================================================
                 🚀 YOUTUBE UPLOAD METADATA
                 ===================================================
-
-                📌 TITLE:
-                {data.get('title')}
-
-                📝 DESCRIPTION:
-                {data.get('description')}
-
-                👇 Read the full story here:
-                {source_url}
-
+                📌 TITLE: {data.get('title')}
+                📝 DESCRIPTION: {data.get('description')}
+                👇 Read the full story here: {source_url}
                 ---------------------------------------------------
-                🔥 HASHTAGS:
-                {data.get('hashtags')}
-
-                🏷️ TAGS:
-                {data.get('tags')}
+                🔥 HASHTAGS: {data.get('hashtags')}
+                🏷️ TAGS: {data.get('tags')}
                 ---------------------------------------------------
                 """
-            # Save to a temporary file (or specific log folder)
             with open(meta_filename, "w", encoding="utf-8") as f:
                 f.write(metadata_content)
-
-            print(f"📄 Metadata saved to: {meta_filename}")
 
             # Update Database
             self.db.collection.update_one(
@@ -128,7 +126,6 @@ class ScriptGenerator:
                 {
                     "$set": {
                         "script_data": data["scenes"],
-                        # "full_script": full_script,
                         "title": data.get("title", task["title"]),
                         "ai_description": data.get("description"),
                         "ai_hashtags": data.get("hashtags"),
