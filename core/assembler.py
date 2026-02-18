@@ -76,6 +76,7 @@ class VideoAssembler:
                                 stroke_width=5,
                                 method="caption",
                                 size=(900, None),  # Wrap text within 900px width
+                                margin=(20, 20),
                             )
                             .with_position("center")
                             .with_duration(min(duration, 3))  # Show for max 3 seconds
@@ -113,6 +114,7 @@ class VideoAssembler:
                         stroke_width=4,
                         method="caption",
                         size=(1000, None),
+                        margin=(20, 20),
                     )
                     .with_start(word["start"])
                     .with_duration(word["end"] - word["start"])
