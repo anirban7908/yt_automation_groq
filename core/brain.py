@@ -36,46 +36,59 @@ class ScriptGenerator:
 
         # PROMPT REMAINS EXACTLY THE SAME AS BEFORE
         prompt = f"""
-        ROLE: Documentary Director.
-        TASK: Convert this news into a structured video script.
-        SOURCE: "{source}"
-        
-        REQUIREMENTS:
-        1. Break the story into 6-8 distinct SCENES.
-        2. 'text': The narration for that scene (1-2 sentences).
-        3. 'image_count': Should this scene have 1 image (slow) or 2 images (fast)? (Integer).
-        4. **METADATA** (Generate this for YouTube):
-           - 'title': A click-worthy, viral title (under 70 chars).
-           - 'description': A compelling 3-sentence summary. PLAIN TEXT ONLY. NO HTML.
-           - 'hashtags': A string of 3-5 relevant hashtags (e.g., "#Space #Science #Viral").
-           - 'tags': A string of 5-10 comma-separated SEO tags.
-        5. **CRITICAL - KEYWORD RULES (ZERO TOLERANCE)**:
-           - 'keywords': A list of exactly 2 string search terms.
-           - **NEVER leave this empty.** Even for the Outro/CTA scene.
-           - **SPECIFICITY**: Use specific names (e.g., "Sony Camera", "Elon Musk", "SpaceX Rocket").
-           - **FALLBACK**: If the scene is generic, use keywords like ["Abstract Tech Background", "News Studio"].
-           - **BAD**: [] or [""] -> THIS WILL CRASH THE SYSTEM.
-           - **GOOD**: ["Sony LinkBuds", "Earbuds"] or ["Subscribe Button", "Social Media"].
-        
-        6. **CRITICAL - CTA RULES**: 
-           - The FINAL SCENE must be a generic social media Call to Action.
-           - Example: "Follow us for more {niche} stories and daily discoveries!"
-           - **FORBIDDEN**: Do NOT say "Check out our full documentary", "Watch the full video", or "Link in bio". We do NOT have a full video. Keep it short.
-        
-        OUTPUT FORMAT (JSON ONLY):
-        {{
-            "title": "Viral Title Here",
-            "description": "Short summary...",
-            "hashtags": "#Tag1 #Tag2",
-            "tags": "tag1, tag2, tag3",
-            "scenes": [
-                {{
-                    "text": "Scientists have made a discovery.",
-                    "keywords": ["Scientist", "Lab"],
-                    "image_count": 1
-                }}
-            ]
-        }}
+            ROLE: Documentary Director.
+            TASK: Convert this news into a structured video script.
+            SOURCE: "{source}"
+            
+            REQUIREMENTS:
+            1. Break the story into 6-8 distinct SCENES.
+            
+            2. 'text': The narration for that scene (1-2 sentences).
+            
+            3. **VISUALS**:
+                - 'keywords': List exactly 2 specific search terms for stock footage.
+                - 'image_count': 1 (slow paced) or 2 (fast paced).
+            
+            4.  **METADATA**:
+                - 'title': MUST be "Clickbait" style. High curiosity. 
+                - BAD: "New Space Discovery"
+                - GOOD: "NASA Just Found THIS on Mars!?"
+                - GOOD: "You Won't Believe What Hubble Saw..."
+                - RULE: Use ALL CAPS for emphasis words. Max 50 chars.
+                - 'description': 3-sentence summary + call to action.
+                - 'hashtags': #Viral #Shorts + 3 niche tags.
+                
+            5. **CRITICAL - KEYWORD RULES (ZERO TOLERANCE)**:
+                - 'keywords': A list of exactly 2 string search terms.
+                - **NEVER leave this empty.** Even for the Outro/CTA scene.
+                - **SPECIFICITY**: Use specific names (e.g., "Sony Camera", "Elon Musk", "SpaceX Rocket").
+                - **FALLBACK**: If the scene is generic, use keywords like ["Abstract Tech Background", "News Studio"].
+                - **BAD**: [] or [""] -> THIS WILL CRASH THE SYSTEM.
+                - **GOOD**: ["Sony LinkBuds", "Earbuds"] or ["Subscribe Button", "Social Media"].
+            
+            6. **CRITICAL - CTA RULES**: 
+                - The FINAL SCENE must be a generic social media Call to Action.
+                - Example: "Follow us for more {niche} stories and daily discoveries!"
+                - **FORBIDDEN**: Do NOT say "Check out our full documentary", "Watch the full video", or "Link in bio". We do NOT have a full video. Keep it short.
+            
+            7. **NARRATION ('text')**:
+                - Scene 1 MUST be a "Hook". (e.g., "Stop scrolling, you need to see this.")
+                - Keep sentences punchy and conversational.
+            
+            OUTPUT FORMAT (JSON ONLY):
+            {{
+                "title": "Viral Title Here",
+                "description": "Short summary...",
+                "hashtags": "#Tag1 #Tag2",
+                "tags": "tag1, tag2, tag3",
+                "scenes": [
+                    {{
+                        "text": "Scientists have made a discovery.",
+                        "keywords": ["Scientist", "Lab"],
+                        "image_count": 1
+                    }}
+                ]
+            }}
         """
 
         try:

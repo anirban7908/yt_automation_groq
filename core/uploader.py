@@ -71,56 +71,62 @@ class YouTubeUploader:
 
         print(f"   🏷️ Niche: {niche} -> YouTube Category ID: {category_id}")
 
-        # 🟢 SANITIZE DESCRIPTION (THE FIX)
-        # 1. Construct the raw description
+        # 🟢 SANITIZE DESCRIPTION
         raw_description = f"{task['ai_description'][:4000]}\n\n#Shorts\n\nSource: {task.get('source_url', '')}"
-
-        # 2. Remove forbidden characters (< and >)
         clean_description = raw_description.replace("<", "").replace(">", "")
 
         request_body = {
             "snippet": {
                 "categoryId": category_id,
                 "title": task["title"][:100],
-                "description": clean_description,  # <--- Uses cleaned text
+                "description": clean_description,
                 "tags": task.get("tags", "").split(",") + ["Shorts", niche],
             },
             "status": {"privacyStatus": "private", "selfDeclaredMadeForKids": False},
         }
 
-        media = MediaFileUpload(video_path, chunksize=-1, resumable=True)
+        # 🟢 THE FIX: Use 4MB Chunks (Robust against connection drops)
+        CHUNK_SIZE = 4 * 1024 * 1024
+        media = MediaFileUpload(video_path, chunksize=CHUNK_SIZE, resumable=True)
 
         request = self.youtube.videos().insert(
             part="snippet,status", body=request_body, media_body=media
         )
 
-        try:
-            print("   ⏳ Uploading...")
-            response = None
-            while response is None:
+        print("   ⏳ Uploading...")
+        response = None
+        retries = 0
+
+        while response is None:
+            try:
                 status, response = request.next_chunk()
                 if status:
                     print(f"      Uploaded {int(status.progress() * 100)}%")
+            except Exception as e:
+                # 🟢 RETRY LOGIC for Connection Resets
+                print(f"      ⚠️ Connection interrupted ({e}). Retrying in 5s...")
+                retries += 1
+                time.sleep(5)
+                if retries > 10:
+                    print("      ❌ Too many failures. Aborting.")
+                    return
 
-            if "id" in response:
-                video_id = response["id"]
-                print(f"   ✅ Upload Successful! Video ID: {video_id}")
+        if response and "id" in response:
+            video_id = response["id"]
+            print(f"   ✅ Upload Successful! Video ID: {video_id}")
 
-                self.db.collection.update_one(
-                    {"_id": task["_id"]},
-                    {
-                        "$set": {
-                            "status": "uploaded",
-                            "youtube_id": video_id,
-                            "uploaded_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                        }
-                    },
-                )
-            else:
-                print(f"   ❌ Upload failed: {response}")
-
-        except Exception as e:
-            print(f"   ❌ API Error: {e}")
+            self.db.collection.update_one(
+                {"_id": task["_id"]},
+                {
+                    "$set": {
+                        "status": "uploaded",
+                        "youtube_id": video_id,
+                        "uploaded_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                },
+            )
+        else:
+            print(f"   ❌ Upload failed: {response}")
 
 
 if __name__ == "__main__":
